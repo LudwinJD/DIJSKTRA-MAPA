@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rutas Puno</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        #sidebar {
+            width: 350px;
+            padding: 20px;
+            background-color: #ffffff;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            position: absolute;
+            left: -350px;
+            top: 0;
+            bottom: 0;
+            z-index: 1000;
+            transition: left 0.3s ease-in-out;
+        }
+
+        #sidebar.active {
+            left: 0;
+        }
+
+        .menu-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background-color: #ffffff;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-container {
+            position: absolute;
+            top: 20px;
+            left: 80px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+        }
+
+        .search-results,
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 0 0 25px 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1002;
+        }
+
+        .search-result-item,
+        .autocomplete-result-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover,
+        .autocomplete-result-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: #ffffff;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark-theme {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+        }
+
+        .dark-theme #sidebar {
+            background-color: #34495e;
+            color: #ecf0f1;
+        }
+
+        .custom-div-icon {
+            background: none;
+            border: none;
+        }
+
+        .custom-div-icon i {
+            display: block;
+            font-size: 24px;
+            color: #3498db;
+            text-align: center;
+            line-height: 30px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .autocomplete-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        #directions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+
+        .direction-step {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.2s;
+        }
+
+        .direction-step:hover {
+            background-color: #f5f5f5;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1002;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        .btn {
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            border-color: #3498db;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+            border-color: #95a5a6;
+        }
+
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+            border-color: #7f8c8d;
+        }
+
+        h2, h4 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        .form-control, .form-select {
+            border-radius: 25px;
+            padding: 10px 20px;
+            border: 1px solid #bdc3c7;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+    </style>
+</head>
+
+<body>
+    <button class="btn btn-primary menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="search-container">
+        <input type="text" class="search-input" placeholder="Buscar lugar..." oninput="buscarLugares(this.value)">
+        <div class="search-results"></div>
+    </div>
+    <div id="sidebar">
+        <h2 class="mb-4">Rutas Puno</h2>
+        <div class="mb-3 autocomplete-container">
+            <label for="start" class="form-label">Punto de inicio:</label>
+            <input type="text" id="start" class="form-control" placeholder="Seleccionar inicio"
+                oninput="mostrarSugerencias(this, 'start-results')">
+            <div id="start-results" class="autocomplete-results"></div>
+        </div>
+        <div class="mb-3 autocomplete-container">
+            <label for="end" class="form-label">Destino:</label>
+            <input type="text" id="end" class="form-control" placeholder="Seleccionar destino"
+                oninput="mostrarSugerencias(this, 'end-results')">
+            <div id="end-results" class="autocomplete-results"></div>
+        </div>
+        <div class="mb-3">
+            <label for="transport" class="form-label">Modo de transporte:</label>
+            <select id="transport" class="form-select">
+                <option value="foot">A pie</option>
+                <option value="bicycle">Bicicleta</option>
+                <option value="car">Coche</option>
+            </select>
+        </div>
+        <button onclick="encontrarRutaCorta()" class="btn btn-primary w-100 mb-3">Encontrar ruta más corta</button>
+        <button onclick="limpiarRuta()" class="btn btn-secondary w-100 mb-3">Limpiar ruta</button>
+        <div id="route-info" class="mt-4"></div>
+    </div>
+    <div id="map"></div>
+    <div id="directions-panel"></div>
+    <div id="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2">Buscando la mejor ruta...</p>
+    </div>
+    <button class="btn btn-dark theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-adjust"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script>
+        let map;
+        let rutaLayer;
+        let lugares = [];
+        let markerClusterGroup;
+
+        async function inicializarMapa() {
+            map = L.map('map').setView([-15.8402, -70.0219], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            markerClusterGroup = L.markerClusterGroup();
+            map.addLayer(markerClusterGroup);
+
+            await obtenerLugares();
+            mostrarLugares();
+        }
+
+        async function obtenerLugares() {
+            const query = `
+                [out:json];
+                area["name"="Puno"]["admin_level"="8"]->.searchArea;
+                (
+                  node["amenity"](area.searchArea);
+                  node["tourism"](area.searchArea);
+                  node["leisure"](area.searchArea);
+                  way["amenity"](area.searchArea);
+                  way["leisure"](area.searchArea);
+                );
+                out center;
+            `;
+
+            try {
+                const response = await axios.get('https://overpass-api.de/api/interpreter', {
+                    params: { data: query }
+                });
+
+                lugares = response.data.elements.map(element => ({
+                    id: element.id,
+                    nombre: element.tags.name || obtenerNombrePorTipo(element.tags),
+                    posicion: element.lat ? [element.lat, element.lon] : [element.center.lat, element.center.lon],
+                    tipo: obtenerTipo(element.tags)
+                }));
+            } catch (error) {
+                console.error('Error al obtener lugares:', error);
+                alert('No se pudieron cargar los lugares. Por favor, recarga la página.');
+            }
+        }
+
+        function obtenerNombrePorTipo(tags) {
+            if (tags.amenity) return `${tags.amenity.charAt(0).toUpperCase() + tags.amenity.slice(1)} sin nombre`;
+            if (tags.leisure) return `${tags.leisure.charAt(0).toUpperCase() + tags.leisure.slice(1)} sin nombre`;
+            if (tags.tourism) return `${tags.tourism.charAt(0).toUpperCase() + tags.tourism.slice(1)} sin nombre`;
+            return 'Lugar sin nombre';
+        }
+
+        function obtenerTipo(tags) {
+            if (tags.amenity) return tags.amenity;
+            if (tags.leisure) return tags.leisure;
+            if (tags.tourism) return tags.tourism;
+            return 'otro';
+        }
+
+        function mostrarLugares() {
+            const iconos = {
+                place_of_worship: 'fa-church',
+                hospital: 'fa-hospital',
+                school: 'fa-school',
+                university: 'fa-university',
+                park: 'fa-tree',
+                restaurant: 'fa-utensils',
+                cafe: 'fa-coffee',
+                bank: 'fa-landmark',
+                police: 'fa-shield-alt',
+                library: 'fa-book',
+                bus_station: 'fa-bus',
+                museum: 'fa-museum',
+                hotel: 'fa-bed',
+                default: 'fa-map-marker-alt'
+            };
+
+            markerClusterGroup.clearLayers();
+
+            lugares.forEach(lugar => {
+                const icono = L.divIcon({
+                    html: `<i class="fas ${iconos[lugar.tipo] || iconos.default}"></i>`,
+                    className: 'custom-div-icon',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30],
+                    popupAnchor: [0, -30]
+                });
+
+                const marker = L.marker(lugar.posicion, { icon: icono })
+                    .bindPopup(`<b>${lugar.nombre}</b><br>Tipo: ${lugar.tipo}`);
+
+                markerClusterGroup.addLayer(marker);
+            });
+        }
+
+        function mostrarSugerencias(input, resultsId) {
+            const query = input.value.toLowerCase();
+            const resultados = lugares.filter(lugar =>
+                lugar.nombre.toLowerCase().includes(query)
+            );
+            const resultsContainer = document.getElementById(resultsId);
+            resultsContainer.innerHTML = '';
+            resultsContainer.style.display = resultados.length > 0 ? 'block' : 'none';
+
+            resultados.forEach(lugar => {
+                const item = document.createElement('div');
+                item.classList.add('autocomplete-result-item');
+                item.textContent = lugar.nombre;
+                item.onclick = () => seleccionarLugarInput(lugar, input, resultsContainer);
+                resultsContainer.appendChild(item);
+            });
+        }
+
+        function seleccionarLugarInput(lugar, input, resultsContainer) {
+            input.value = lugar.nombre;
+            resultsContainer.style.display = 'none';
+            map.setView(lugar.posicion, 18);
+        }
+
+        function buscarLugares(query) {
+            const searchResults = document.querySelector('.search-results');
+            const resultados = lugares.filter(lugar =>
+                lugar.nombre.toLowerCase().includes(query.toLowerCase())
+            );
+            searchResults.innerHTML = '';
+            searchResults.style.display = resultados.length > 0 ? 'block' : 'none';
+
+            resultados.forEach(lugar => {
+                const item = document.createElement('div');
+                item.classList.add('search-result-item');
+                item.textContent = lugar.nombre;
+                item.onclick = () => {
+                    document.querySelector('.search-input').value = lugar.nombre;
+                    searchResults.style.display = 'none';
+                    map.setView(lugar.posicion, 18);
+                };
+                searchResults.appendChild(item);
+            });
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        async function encontrarRutaCorta() {
+    const inicio = document.getElementById('start').value;
+    const fin = document.getElementById('end').value;
+    const modoTransporte = document.getElementById('transport').value;
+
+    if (!inicio || !fin) {
+        alert('Por favor, selecciona un punto de inicio y un destino.');
+        return;
+    }
+
+    document.getElementById('loading').style.display = 'block';
+
+    try {
+        const lugarInicio = lugares.find(l => l.nombre === inicio);
+        const lugarFin = lugares.find(l => l.nombre === fin);
+
+        if (!lugarInicio || !lugarFin) {
+            throw new Error('No se encontraron los lugares especificados');
+        }
+
+        const inicioCoords = lugarInicio.posicion;
+        const finCoords = lugarFin.posicion;
+
+        const perfil = obtenerPerfilTransporte(modoTransporte);
+        const opciones = obtenerOpcionesRuta(modoTransporte);
+
+        const url = `https://router.project-osrm.org/route/v1/${perfil}/${inicioCoords[1]},${inicioCoords[0]};${finCoords[1]},${finCoords[0]}?overview=full&geometries=geojson&steps=true${opciones}`;
+        const response = await axios.get(url);
+        const route = response.data.routes[0];
+
+        mostrarRuta(route.geometry);
+        mostrarIndicaciones(route.legs[0].steps, modoTransporte);
+        mostrarResumenRuta(route, modoTransporte);
+    } catch (error) {
+        console.error('Error al encontrar la ruta:', error);
+        alert('No se pudo encontrar una ruta. Por favor, intenta de nuevo.');
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+    }
+}
+
+function obtenerPerfilTransporte(modoTransporte) {
+    switch (modoTransporte) {
+        case 'foot':
+            return 'foot';
+        case 'bicycle':
+            return 'bicycle';
+        case 'car':
+            return 'driving';
+        default:
+            return 'foot';
+    }
+}
+
+function obtenerOpcionesRuta(modoTransporte) {
+    let opciones = '';
+    if (modoTransporte === 'foot') {
+        opciones += '&continue_straight=false'; // Permite giros en U para peatones
+    } else if (modoTransporte === 'car') {
+        opciones += '&continue_straight=true'; // Evita giros en U para coches
+    }
+    return opciones;
+}
+
+function mostrarIndicaciones(steps, modoTransporte) {
+    const directionsPanel = document.getElementById('directions-panel');
+    directionsPanel.innerHTML = '<h4>Indicaciones:</h4>';
+    directionsPanel.style.display = 'block';
+
+    steps.forEach((step, index) => {
+        const stepElement = document.createElement('div');
+        stepElement.classList.add('direction-step');
+        let instruction = step.maneuver.instruction;
+        
+        if (!instruction) {
+            instruction = `Continúe por ${step.name || 'la vía'}`;
+        }
+        
+        // Ajustar la velocidad según el modo de transporte
+        const velocidad = obtenerVelocidadPromedio(modoTransporte);
+        const tiempoEstimado = Math.round((step.duration / 60) * (velocidad / 5)); // 5 km/h es la velocidad base para caminar
+
+        stepElement.innerHTML = `
+            <strong>${index + 1}.</strong> ${instruction}
+            <br><small>${(step.distance / 1000).toFixed(2)} km - ${tiempoEstimado} min</small>
+        `;
+        directionsPanel.appendChild(stepElement);
+    });
+}
+
+function obtenerVelocidadPromedio(modoTransporte) {
+    switch (modoTransporte) {
+        case 'foot':
+            return 5; // km/h
+        case 'bicycle':
+            return 15; // km/h
+        case 'car':
+            return 40; // km/h
+        default:
+            return 5;
+    }
+}
+
+function mostrarResumenRuta(route, modoTransporte) {
+    const distancia = (route.distance / 1000).toFixed(2);
+    const velocidad = obtenerVelocidadPromedio(modoTransporte);
+    const duracion = Math.round((route.duration / 60) * (velocidad / 5)); // Ajustar la duración según la velocidad
+    document.getElementById('route-info').innerHTML = `
+        <h4>Información de la ruta:</h4>
+        <p><i class="fas fa-route"></i> Distancia: ${distancia} km</p>
+        <p><i class="fas fa-clock"></i> Tiempo estimado: ${duracion} minutos</p>
+        <p><i class="fas ${obtenerIconoTransporte(modoTransporte)}"></i> Modo: ${obtenerNombreTransporte(modoTransporte)}</p>
+    `;
+}
+
+function obtenerIconoTransporte(modoTransporte) {
+    switch (modoTransporte) {
+        case 'foot':
+            return 'fa-walking';
+        case 'bicycle':
+            return 'fa-bicycle';
+        case 'car':
+            return 'fa-car';
+        default:
+            return 'fa-question';
+    }
+}
+
+function obtenerNombreTransporte(modoTransporte) {
+    switch (modoTransporte) {
+        case 'foot':
+            return 'A pie';
+        case 'bicycle':
+            return 'Bicicleta';
+        case 'car':
+            return 'Coche';
+        default:
+            return 'Desconocido';
+    }
+}
+
+        function mostrarRuta(geometry) {
+            if (rutaLayer) {
+                map.removeLayer(rutaLayer);
+            }
+            rutaLayer = L.geoJSON(geometry, {
+                style: {
+                    color: '#3498db',
+                    weight: 6,
+                    opacity: 0.7
+                }
+            }).addTo(map);
+            map.fitBounds(rutaLayer.getBounds());
+        }
+
+        function mostrarResumenRuta(route) {
+            const distancia = (route.distance / 1000).toFixed(2);
+            const duracion = Math.round(route.duration / 60);
+            document.getElementById('route-info').innerHTML = `
+                <h4>Información de la ruta:</h4>
+                <p><i class="fas fa-route"></i> Distancia: ${distancia} km</p>
+                <p><i class="fas fa-clock"></i> Tiempo estimado: ${duracion} minutos</p>
+            `;
+        }
+
+        function limpiarRuta() {
+            if (rutaLayer) {
+                map.removeLayer(rutaLayer);
+            }
+            document.getElementById('route-info').innerHTML = '';
+            document.getElementById('start').value = '';
+            document.getElementById('end').value = '';
+            document.getElementById('directions-panel').style.display = 'none';
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-theme');
+            const isDark = document.body.classList.contains('dark-theme');
+            if (isDark) {
+                map.removeLayer(map.tileLayer);
+                map.addLayer(L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '©OpenStreetMap, ©CartoDB'
+                }));
+            } else {
+                map.eachLayer(function (layer) {
+                    if (layer instanceof L.TileLayer) {
+                        map.removeLayer(layer);
+                    }
+                });
+                map.addLayer(L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }));
+            }
+        }
+
+        window.onload = inicializarMapa;
+
+        // Cerrar las sugerencias al hacer clic fuera de ellas
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.autocomplete-container') && !e.target.closest('.search-container')) {
+                document.querySelectorAll('.autocomplete-results, .search-results').forEach(el => el.style.display = 'none');
+            }
+        });
+
+        // Asegúrate de que esta función esté conectada al input de búsqueda
+        document.querySelector('.search-input').addEventListener('input', function() {
+            buscarLugares(this.value);
+        });
+    </script>
+</body>
+</html>
